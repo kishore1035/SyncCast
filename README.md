@@ -598,4 +598,4 @@ E465ADD5E701B52F3886E7C3D83318643318837176BCC161F841867DED2B6649 *SyncCast.exe
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](LICENSE).

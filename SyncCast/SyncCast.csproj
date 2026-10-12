@@ -20,6 +20,7 @@
     <Description>Personal software-only Windows desktop application to route and synchronize system audio across multiple active Windows audio endpoints.</Description>
     <Company>SyncCast Project</Company>
     <Copyright>Copyright © 2026 SyncCast Project</Copyright>
+    <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
