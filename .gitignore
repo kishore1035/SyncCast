@@ -1,0 +1,29 @@
+## Build and intermediate output
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## Visual Studio & IDE files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+.vscode/
+.idea/
+
+## Testing
+TestResults/
+[Tt]est[Rr]esult*/
+
+## Artifacts & binary releases
+artifacts/SyncCast-win-x64/
+artifacts/*.zip
+*.pdb
+createdump.exe
+
+## Windows temp files
+Thumbs.db
+Desktop.ini

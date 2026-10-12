@@ -1,0 +1,1527 @@
+<Window x:Class="SyncCast.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:SyncCast.ViewModels"
+        xmlns:models="clr-namespace:SyncCast.Models"
+        mc:Ignorable="d"
+        Title="SyncCast — Multi-Device Audio"
+        Icon="Resources/SyncCast.ico"
+        Width="1280" Height="860"
+        MinWidth="1040" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource FluentFontFamily}"
+        Background="{DynamicResource BgDarkBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
+        d:DataContext="{d:DesignInstance vm:MainViewModel}">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <!-- Navigation Rail -->
+            <ColumnDefinition Width="230" />
+            <!-- Main Content Area -->
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- ========================================================= -->
+        <!-- LEFT NAVIGATION RAIL (WINDOWS 11 FLUENT STYLE)             -->
+        <!-- ========================================================= -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource RailBgBrush}"
+                BorderBrush="{DynamicResource BorderDarkBrush}"
+                BorderThickness="0,0,1,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!-- Brand Header -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Navigation Items -->
+                    <RowDefinition Height="*" />
+                    <!-- Footer Info / Master Volume Quick Glance -->
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- BRAND HEADER -->
+                <StackPanel Grid.Row="0" Margin="16,20,16,16">
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="36" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- App Icon Glyph -->
+                        <Border Grid.Column="0" Width="34" Height="34" CornerRadius="8"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource AccentCyanBrush}" BorderThickness="1.5">
+                            <Path Data="{StaticResource IconWaveform}"
+                                  Fill="{DynamicResource AccentCyanBrush}"
+                                  Width="18" Height="18"
+                                  Stretch="Uniform"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+
+                        <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding AppName}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Real-Time Activity Status Pill -->
+                    <Border CornerRadius="12" Padding="10,5" Margin="0,4,0,0">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="#10FFFFFF" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSharingAudio}" Value="True">
+                                        <Setter Property="Background" Value="#2610B981" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsAudioPlaying}" Value="True">
+                                        <Setter Property="Background" Value="#2600A3D9" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="7" Height="7" Margin="0,0,7,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#64748B" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSharingAudio}" Value="True">
+                                                <Setter Property="Fill" Value="#10B981" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsAudioPlaying}" Value="True">
+                                                <Setter Property="Fill" Value="#00A3D9" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock FontSize="11" FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="ENGINE IDLE" />
+                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsSharingAudio}" Value="True">
+                                                <Setter Property="Text" Value="SYSTEM AUDIO ACTIVE" />
+                                                <Setter Property="Foreground" Value="#10B981" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsAudioPlaying}" Value="True">
+                                                <Setter Property="Text" Value="TEST TONE ACTIVE" />
+                                                <Setter Property="Foreground" Value="#00A3D9" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- NAVIGATION ITEMS -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="6,6,6,6">
+                        <!-- Overview -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=Overview}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="Overview">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconOverview}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                <TextBlock Text="Overview" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Audio Devices -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=Devices}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="Devices">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconDevices}"
+                                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                          Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                    <TextBlock Text="Audio Devices" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <!-- Selected count badge -->
+                                <Border Grid.Column="1" Background="#20FFFFFF" CornerRadius="10" Padding="6,1" VerticalAlignment="Center" Margin="6,0,0,0">
+                                    <TextBlock Text="{Binding SelectedCount}" FontSize="10" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </Border>
+                            </Grid>
+                        </RadioButton>
+
+                        <!-- Sync Calibration -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=SyncCalibration}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="SyncCalibration">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconSync}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                <TextBlock Text="Sync Calibration" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Diagnostics -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=Diagnostics}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="Diagnostics">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconDiagnostics}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                <TextBlock Text="Diagnostics" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- Settings -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=Settings}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="Settings">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconSettings}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                <TextBlock Text="Audio Settings" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+
+                        <!-- About -->
+                        <RadioButton Style="{StaticResource FluentNavRadioButtonStyle}"
+                                     GroupName="NavGroup"
+                                     IsChecked="{Binding CurrentPage, Converter={StaticResource EqToBool}, ConverterParameter=About}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="About">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconAbout}"
+                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                      Width="16" Height="16" Stretch="Uniform" Margin="0,0,10,0" />
+                                <TextBlock Text="About" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </RadioButton>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- FOOTER / RUNTIME STATS -->
+                <Border Grid.Row="2"
+                        Background="{DynamicResource SurfaceDarkBrush}"
+                        BorderBrush="{DynamicResource BorderDarkBrush}"
+                        BorderThickness="0,1,0,0"
+                        Padding="14,12">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Path Data="{StaticResource IconSpeaker}"
+                                  Fill="{DynamicResource AccentCyanBrush}"
+                                  Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding SelectionCountText}" FontSize="11" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text=".NET 8 • WASAPI Shared" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- MAIN CONTENT AREA (PAGES)                                 -->
+        <!-- ========================================================= -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <!-- Warning / Alert InfoBar -->
+                <RowDefinition Height="Auto" />
+                <!-- Page Content -->
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- WARNING INFOBAR -->
+            <Border Grid.Row="0"
+                    Visibility="{Binding HasSelectionWarning, Converter={StaticResource BoolToVis}}"
+                    Background="#2A1B18" BorderBrush="#F59E0B" BorderThickness="0,0,0,1"
+                    Padding="20,10">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Path Grid.Column="0" Data="{StaticResource IconWarning}" Fill="#F59E0B"
+                          Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding SelectionWarning}"
+                               FontSize="12" Foreground="#FDE68A" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <Button Grid.Column="2" Style="{StaticResource FluentSubtleButtonStyle}"
+                            Command="{Binding DismissWarningCommand}"
+                            Padding="8,4" Margin="12,0,0,0" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="{StaticResource IconDismiss}" Fill="#F59E0B" Width="10" Height="10" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Dismiss" FontSize="11" Foreground="#F59E0B" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- ========================================================= -->
+            <!-- 1. OVERVIEW PAGE                                          -->
+            <!-- ========================================================= -->
+            <ScrollViewer Grid.Row="1"
+                          Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=Overview}"
+                          VerticalScrollBarVisibility="Auto" Padding="28,24">
+                <StackPanel MaxWidth="1000" HorizontalAlignment="Left">
+                    <!-- Page Header -->
+                    <TextBlock Text="Overview" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                    <TextBlock Text="Route and synchronize audio across multiple Windows playback endpoints."
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,20" />
+
+                    <!-- PRIMARY ACTION HERO CARD -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                    <TextBlock Text="Real-Time Sharing Status:" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+                                    <Border CornerRadius="4" Padding="6,2">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#15FFFFFF" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSharingAudio}" Value="True">
+                                                        <Setter Property="Background" Value="#2610B981" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsAudioPlaying}" Value="True">
+                                                        <Setter Property="Background" Value="#2600A3D9" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock FontSize="11" FontWeight="Bold">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="READY TO SHARE" />
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSharingAudio}" Value="True">
+                                                            <Setter Property="Text" Value="LIVE SHARING ACTIVE" />
+                                                            <Setter Property="Foreground" Value="#10B981" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsAudioPlaying}" Value="True">
+                                                            <Setter Property="Text" Value="TEST TONE ACTIVE" />
+                                                            <Setter Property="Foreground" Value="#00A3D9" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding ConcurrencyNotice}" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                            </StackPanel>
+
+                            <!-- Primary Action Buttons -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Start Sharing Button -->
+                                <Button Style="{StaticResource FluentPrimaryButtonStyle}"
+                                        Visibility="{Binding IsSharingAudio, Converter={StaticResource InvertBoolToVis}}"
+                                        IsEnabled="{Binding CanStartSharing}"
+                                        Command="{Binding StartSystemAudioSharingCommand}"
+                                        Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconPlay}" Fill="#FFFFFF" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Start Sharing" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Stop Sharing Button -->
+                                <Button Style="{StaticResource FluentDangerButtonStyle}"
+                                        Visibility="{Binding IsSharingAudio, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding StopSystemAudioSharingCommand}"
+                                        Padding="20,10" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconStop}" Fill="#FFFFFF" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Stop Sharing" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- SOURCE ROUTING ADVISORY INFOBAR -->
+                    <Border Background="#1A00B4D8" BorderBrush="{DynamicResource AccentCyanBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="16,12" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Path Grid.Column="0" Data="{StaticResource IconAbout}" Fill="{DynamicResource AccentCyanBrush}"
+                                  Width="16" Height="16" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="{Binding SourceSelectionAdviceMessage}"
+                                       FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- TWO-COLUMN GRID: SOURCE SELECTOR & MASTER VOLUME -->
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- CARD 1: AUDIO CAPTURE SOURCE -->
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource CardStrokeBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Capture Source (WASAPI)" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="Live audio mix captured from Windows" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Style="{StaticResource FluentSubtleButtonStyle}"
+                                            Command="{Binding RefreshDevicesCommand}"
+                                            ToolTip="Refresh audio sources">
+                                        <Path Data="{StaticResource IconRefresh}" Fill="{DynamicResource TextSecondaryBrush}" Width="14" Height="14" Stretch="Uniform" />
+                                    </Button>
+                                </Grid>
+
+                                <!-- Source ComboBox -->
+                                <ComboBox Style="{StaticResource FluentComboBoxStyle}"
+                                          ItemsSource="{Binding AvailableCaptureSources}"
+                                          SelectedItem="{Binding SelectedCaptureSource, Mode=TwoWay}"
+                                          Margin="0,0,0,14">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" Margin="2,4">
+                                                <Path Data="{Binding Transport, Converter={StaticResource TransportToIcon}}"
+                                                      Fill="{DynamicResource AccentCyanBrush}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding FriendlyName}" FontSize="12" FontWeight="Medium" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <!-- Capture Telemetry Pill -->
+                                <Border Background="{DynamicResource SurfacePanelBrush}" CornerRadius="6" Padding="12,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding CaptureStatus.CaptureFormatText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{Binding CaptureStatus.State, Converter={StaticResource CaptureStateToBrush}}"
+                                                   Text="{Binding CaptureStatus.State}" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- CARD 2: MASTER VOLUME -->
+                        <Border Grid.Column="2"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource CardStrokeBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Master Volume" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                        <TextBlock Text="Applies gain smoothly to all active destinations" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding MasterVolumeText}"
+                                               FontSize="16" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <!-- Fluent Slider -->
+                                <Slider Style="{StaticResource FluentSliderStyle}"
+                                        Minimum="0" Maximum="100"
+                                        Value="{Binding MasterVolume, Mode=TwoWay}"
+                                        Margin="0,0,0,14" />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Mute Button -->
+                                    <Button Grid.Column="0" Style="{StaticResource FluentSecondaryButtonStyle}"
+                                            Command="{Binding ToggleMasterMuteCommand}"
+                                            Padding="12,6">
+                                        <TextBlock Text="{Binding MasterMuteButtonText}" FontSize="12" />
+                                    </Button>
+
+                                    <!-- Auto-Reconnect Switch -->
+                                    <CheckBox Grid.Column="1" Style="{StaticResource FluentToggleSwitchStyle}"
+                                              IsChecked="{Binding AutoReconnect, Mode=TwoWay}"
+                                              Content="Auto-Reconnect" Margin="14,0,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- CARD 3: TEST TONE ALTERNATIVE MODE -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Hardware Calibration Test Tone" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="Synthesizes continuous sine wave at safe -20 dBFS level across all selected outputs."
+                                           FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,2,0,8" />
+
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Reference Frequency: " FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                    <ComboBox Style="{StaticResource FluentComboBoxStyle}"
+                                              SelectedValuePath="Tag"
+                                              SelectedValue="{Binding ToneFrequency, Mode=TwoWay}"
+                                              Width="160">
+                                        <ComboBoxItem Content="440 Hz (Concert A)" Tag="440.0" />
+                                        <ComboBoxItem Content="528 Hz (Harmonic)" Tag="528.0" />
+                                        <ComboBoxItem Content="1,000 Hz (Standard)" Tag="1000.0" />
+                                    </ComboBox>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                        Visibility="{Binding IsAudioPlaying, Converter={StaticResource InvertBoolToVis}}"
+                                        IsEnabled="{Binding CanStartAudio}"
+                                        Command="{Binding StartAudioTestCommand}"
+                                        Padding="16,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconPlay}" Fill="{DynamicResource AccentCyanBrush}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Start Test Tone" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource FluentDangerButtonStyle}"
+                                        Visibility="{Binding IsAudioPlaying, Converter={StaticResource BoolToVis}}"
+                                        Command="{Binding StopAudioTestCommand}"
+                                        Padding="16,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconStop}" Fill="#FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Stop Test Tone" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ========================================================= -->
+            <!-- 2. AUDIO DEVICES PAGE                                     -->
+            <!-- ========================================================= -->
+            <Grid Grid.Row="1"
+                  Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=Devices}"
+                  Margin="28,24">
+                <Grid.RowDefinitions>
+                    <!-- Top Action Bar -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Two Column Content Area -->
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- TOP ACTION BAR -->
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Audio Devices" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Discover available Windows playback endpoints and select up to five concurrent destinations."
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Selection Count Badge -->
+                        <Border CornerRadius="6" Padding="12,6" Margin="0,0,12,0"
+                                Background="{DynamicResource SurfaceCardBrush}"
+                                BorderBrush="{DynamicResource AccentCyanBrush}" BorderThickness="1">
+                            <TextBlock Text="{Binding SelectionCountText}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentCyanBrush}" />
+                        </Border>
+
+                        <!-- Refresh Devices Button -->
+                        <Button Style="{StaticResource FluentPrimaryButtonStyle}"
+                                Command="{Binding RefreshDevicesCommand}"
+                                Padding="16,8">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconRefresh}" Fill="#FFFFFF" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Refresh Devices" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- TWO-COLUMN LAYOUT -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <!-- Discovered Endpoints -->
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="20" />
+                        <!-- Configured Output Streams -->
+                        <ColumnDefinition Width="1.2*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- LEFT PANEL: DISCOVERED ENDPOINTS -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Discovered Windows Endpoints" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding AvailableEndpoints}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource SurfacePanelBrush}"
+                                                    BorderBrush="{DynamicResource CardStrokeBrush}"
+                                                    BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Transport Icon -->
+                                                    <Path Grid.Column="0"
+                                                          Data="{Binding Transport, Converter={StaticResource TransportToIcon}}"
+                                                          Fill="{DynamicResource AccentCyanBrush}"
+                                                          Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center" />
+
+                                                    <!-- Endpoint Details -->
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding FriendlyName}" FontSize="13" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding FriendlyName}" />
+                                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                            <Border Background="#15FFFFFF" CornerRadius="4" Padding="6,1" Margin="0,0,6,0">
+                                                                <TextBlock Text="{Binding TransportBadgeText}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding FormatText}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+
+                                                    <!-- Select Checkbox -->
+                                                    <CheckBox Grid.Column="2" Style="{StaticResource FluentToggleSwitchStyle}"
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                              Command="{Binding ToggleSelectionCommand}"
+                                                              VerticalAlignment="Center" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- RIGHT PANEL: ACTIVE / CONFIGURED OUTPUT STREAMS -->
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Configured Output Destinations" FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding ActiveStreams}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource SurfacePanelBrush}"
+                                                    BorderBrush="{DynamicResource CardStrokeBrush}"
+                                                    BorderThickness="1" CornerRadius="6" Padding="14" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <!-- Device Header -->
+                                                    <Grid Margin="0,0,0,8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="{Binding EndpointName}" FontSize="13" FontWeight="SemiBold"
+                                                                       Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding EndpointName}" />
+                                                            <TextBlock Text="{Binding TargetFormat}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        </StackPanel>
+
+                                                        <!-- Playback State Badge -->
+                                                        <Border Grid.Column="1" CornerRadius="4" Padding="8,2" VerticalAlignment="Center">
+                                                            <Border.Background>
+                                                                <SolidColorBrush Color="#15FFFFFF" />
+                                                            </Border.Background>
+                                                            <TextBlock Text="{Binding State}" FontSize="11" FontWeight="Bold"
+                                                                       Foreground="{Binding State, Converter={StaticResource StreamStateToBrush}}" />
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <!-- Volume Slider & Mute Row -->
+                                                    <Grid Margin="0,0,0,8">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="45" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Slider Grid.Column="0" Style="{StaticResource FluentSliderStyle}"
+                                                                Minimum="0" Maximum="100"
+                                                                Value="{Binding DeviceVolume, Mode=TwoWay}"
+                                                                VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                                        <TextBlock Grid.Column="1" Text="{Binding VolumeText}" FontSize="12" FontWeight="SemiBold"
+                                                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center" />
+
+                                                        <Button Grid.Column="2" Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                Command="{Binding ToggleMuteCommand}"
+                                                                Padding="8,4">
+                                                            <TextBlock Text="{Binding MuteButtonText}" FontSize="11" />
+                                                        </Button>
+                                                    </Grid>
+
+                                                    <!-- Sync Delay & Reference Row -->
+                                                    <Border Background="#0CFFFFFF" CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
+                                                        <StackPanel>
+                                                            <Grid Margin="0,0,0,4">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <!-- Reference Indicator / Toggle Button -->
+                                                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Border Visibility="{Binding IsSyncReference, Converter={StaticResource BoolToVis}}"
+                                                                            Background="#2600A3D9" CornerRadius="3" Padding="6,2" Margin="0,0,6,0">
+                                                                        <TextBlock Text="REFERENCE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource AccentCyanBrush}" />
+                                                                    </Border>
+                                                                    <Button Visibility="{Binding IsSecondaryOutput, Converter={StaticResource BoolToVis}}"
+                                                                            Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                            Command="{Binding SetAsReferenceCommand}"
+                                                                            Padding="4,2" Margin="0,0,6,0"
+                                                                            ToolTip="Set this device as the shared timing reference">
+                                                                        <TextBlock Text="Set Reference" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                                    </Button>
+                                                                </StackPanel>
+
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                                    <TextBlock Text="Delay: " FontSize="11" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                                                    <TextBlock Text="{Binding SyncDelayText}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                                </StackPanel>
+
+                                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Button Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                            Command="{Binding NudgeDelayCommand}" CommandParameter="-10"
+                                                                            Padding="5,1" Margin="0,0,2,0" ToolTip="Nudge -10ms">
+                                                                        <TextBlock Text="-10" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                                    </Button>
+                                                                    <Button Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                            Command="{Binding NudgeDelayCommand}" CommandParameter="10"
+                                                                            Padding="5,1" Margin="0,0,4,0" ToolTip="Nudge +10ms">
+                                                                        <TextBlock Text="+10" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                                    </Button>
+                                                                    <Button Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                            Command="{Binding ResetDelayCommand}"
+                                                                            Padding="5,1" ToolTip="Reset delay to 0 ms">
+                                                                        <TextBlock Text="0 ms" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                                    </Button>
+                                                                </StackPanel>
+                                                            </Grid>
+
+                                                            <!-- Delay Slider -->
+                                                            <Slider Style="{StaticResource FluentSliderStyle}"
+                                                                    Minimum="0" Maximum="1000" SmallChange="5" LargeChange="20"
+                                                                    Value="{Binding SyncDelayMs, Mode=TwoWay}"
+                                                                    ToolTip="Software playback delay (0–1000 ms) to align with slower destinations" />
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- Telemetry & Health Row -->
+                                                    <Grid Margin="0,2,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="Queue: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                            <TextBlock Text="{Binding BufferOccupancyMs, StringFormat={}{0:F1}ms}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+                                                            <TextBlock Text="Total Delay: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                            <TextBlock Text="{Binding EstimatedBufferDelayMs, StringFormat={}{0:F1}ms}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+                                                            <TextBlock Text="Drift: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                            <TextBlock Text="{Binding DriftText}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0" />
+                                                            <TextBlock Text="Drops: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                            <TextBlock Text="{Binding BufferOverflowDropCount}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                        </StackPanel>
+
+                                                        <!-- Retry Button (for Disconnected/Failed) -->
+                                                        <Button Grid.Column="1" Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"
+                                                                Command="{Binding RetryCommand}"
+                                                                Padding="6,2">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Path Data="{StaticResource IconRetry}" Fill="{DynamicResource AccentCyanBrush}" Width="9" Height="9" Stretch="Uniform" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                                <TextBlock Text="Retry" FontSize="10" Foreground="{DynamicResource AccentCyanBrush}" />
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </Grid>
+
+                                                    <!-- Error Banner if failed -->
+                                                    <Border Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}"
+                                                            Background="#2A1B18" CornerRadius="4" Padding="8,4" Margin="0,6,0,0">
+                                                        <TextBlock Text="{Binding ErrorMessage}" FontSize="11" Foreground="#EF4444" TextWrapping="Wrap" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- ========================================================= -->
+            <!-- 3. GUIDED SYNC CALIBRATION PAGE                           -->
+            <!-- ========================================================= -->
+            <ScrollViewer Grid.Row="1"
+                          Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=SyncCalibration}"
+                          VerticalScrollBarVisibility="Auto" Padding="28,24">
+                <StackPanel MaxWidth="1040" HorizontalAlignment="Left">
+                    <!-- Page Header -->
+                    <Grid Margin="0,0,0,18">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Multi-Output Audio Synchronization" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Calibrate per-device delay and monitor clock drift across connected Bluetooth outputs."
+                                       FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                    Command="{Binding ResetAllDelaysCommand}"
+                                    Padding="14,8" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconRetry}" Fill="{DynamicResource TextSecondaryBrush}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Reset All Delays" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- PRINCIPLE & LIMITATIONS HERO CARD -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="36" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Path Grid.Column="0" Data="{StaticResource IconAbout}" Fill="{DynamicResource AccentCyanBrush}"
+                                  Width="20" Height="20" Stretch="Uniform" Margin="0,2,0,0" VerticalAlignment="Top" />
+
+                            <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                <TextBlock Text="How Bluetooth Audio Synchronization Works" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,6" />
+                                <TextBlock Text="Independent Bluetooth devices have unique hardware buffers, RF transport delays, and internal DSP processing pipelines. A Windows application cannot pull audio backward in time to make a slow device play earlier than its physical path allows."
+                                           FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8" LineHeight="18" />
+                                <TextBlock Text="Calibration Principle: Identify your slowest output or designate a reference device, then add software delay (0–1000 ms) to the faster outputs until acoustic playback arrives synchronously at your ears."
+                                           FontSize="12" Foreground="{DynamicResource AccentCyanBrush}" FontWeight="Medium" TextWrapping="Wrap" LineHeight="18" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- CALIBRATION PULSE CONTROLLER CARD -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                        <TextBlock Text="Acoustic Alignment Pulse" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,8,0" />
+                                        <Border CornerRadius="4" Padding="6,2">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#15FFFFFF" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsCalibrationRunning}" Value="True">
+                                                            <Setter Property="Background" Value="#2610B981" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock FontSize="10" FontWeight="Bold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Text" Value="PULSE IDLE" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsCalibrationRunning}" Value="True">
+                                                                <Setter Property="Text" Value="PULSE RUNNING (880 Hz • 40ms • 800ms Interval)" />
+                                                                <Setter Property="Foreground" Value="#10B981" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Border>
+                                    </StackPanel>
+                                    <TextBlock Text="Generates a gentle, Hann-windowed musical metronome pulse. Completely free of harsh clicks or high volume bursts."
+                                               FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+
+                                <!-- Pulse Play / Stop Button -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource FluentPrimaryButtonStyle}"
+                                            Visibility="{Binding IsCalibrationRunning, Converter={StaticResource InvertBoolToVis}}"
+                                            IsEnabled="{Binding CanStartCalibration}"
+                                            Command="{Binding StartCalibrationPulseCommand}"
+                                            Padding="18,9">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource IconPlay}" Fill="#FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Start Calibration Pulse" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Button Style="{StaticResource FluentDangerButtonStyle}"
+                                            Visibility="{Binding IsCalibrationRunning, Converter={StaticResource BoolToVis}}"
+                                            Command="{Binding StopCalibrationPulseCommand}"
+                                            Padding="18,9">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Path Data="{StaticResource IconStop}" Fill="#FFFFFF" Width="12" Height="12" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Stop Pulse" FontWeight="SemiBold" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Listening instructions / Tips -->
+                            <Border Grid.Row="1" Background="{DynamicResource SurfacePanelBrush}" CornerRadius="6" Padding="14,12">
+                                <StackPanel>
+                                    <TextBlock Text="Alignment Tip:" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AccentCyanBrush}" Margin="0,0,0,4" />
+                                    <TextBlock Text="1. Place speakers equidistant or wear headphones. Start the pulse." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="2. If you hear a flam or slapback echo, one endpoint is arriving ahead of the other." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,2" />
+                                    <TextBlock Text="3. Increase delay on the faster device in 5ms or 10ms steps until clicks merge into a single centered image." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- PER-DEVICE CALIBRATION SLIDERS -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}"
+                            BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,20">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Destination Output Alignment" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="Adjust software delay on faster outputs to compensate for Bluetooth latency differences." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                </StackPanel>
+
+                                <!-- Reference device readout -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="Timing Reference: " FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ReferenceEndpointName}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Active Output Sliders -->
+                            <ItemsControl ItemsSource="{Binding ActiveStreams}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{DynamicResource SurfacePanelBrush}"
+                                                BorderBrush="{DynamicResource CardStrokeBrush}"
+                                                BorderThickness="1" CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                                            <StackPanel>
+                                                <!-- Row 1: Header, Reference Badge, and Delay readout -->
+                                                <Grid Margin="0,0,0,10">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Transport Icon -->
+                                                    <Path Grid.Column="0"
+                                                          Data="{Binding Transport, Converter={StaticResource TransportToIcon}}"
+                                                          Fill="{DynamicResource AccentCyanBrush}"
+                                                          Width="18" Height="18" Stretch="Uniform" Margin="0,0,12,0" VerticalAlignment="Center" />
+
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding EndpointName}" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                                        <TextBlock Text="{Binding TargetFormat}" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                                    </StackPanel>
+
+                                                    <!-- Reference status / button -->
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,16,0">
+                                                        <Border Visibility="{Binding IsSyncReference, Converter={StaticResource BoolToVis}}"
+                                                                Background="#2600A3D9" CornerRadius="4" Padding="8,3">
+                                                            <TextBlock Text="REFERENCE" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentCyanBrush}" />
+                                                        </Border>
+
+                                                        <Button Visibility="{Binding IsSecondaryOutput, Converter={StaticResource BoolToVis}}"
+                                                                Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Command="{Binding SetAsReferenceCommand}"
+                                                                Padding="8,4" ToolTip="Designate this device as the timing baseline">
+                                                            <TextBlock Text="Set as Reference" FontSize="11" />
+                                                        </Button>
+                                                    </StackPanel>
+
+                                                    <!-- Delay ms Readout -->
+                                                    <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding SyncDelayText}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" HorizontalAlignment="Right" />
+                                                        <TextBlock Text="Software Delay" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Row 2: Delay Slider and Nudge Buttons -->
+                                                <Grid Margin="0,0,0,8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Slider Grid.Column="0" Style="{StaticResource FluentSliderStyle}"
+                                                            Minimum="0" Maximum="1000" SmallChange="5" LargeChange="20"
+                                                            Value="{Binding SyncDelayMs, Mode=TwoWay}"
+                                                            VerticalAlignment="Center" Margin="0,0,16,0" />
+
+                                                    <!-- Nudge and Reset Buttons -->
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Command="{Binding NudgeDelayCommand}" CommandParameter="-10"
+                                                                Padding="8,4" Margin="0,0,4,0" ToolTip="Nudge -10 milliseconds">
+                                                            <TextBlock Text="-10ms" FontSize="11" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Command="{Binding NudgeDelayCommand}" CommandParameter="-5"
+                                                                Padding="8,4" Margin="0,0,4,0" ToolTip="Nudge -5 milliseconds">
+                                                            <TextBlock Text="-5ms" FontSize="11" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Command="{Binding NudgeDelayCommand}" CommandParameter="5"
+                                                                Padding="8,4" Margin="0,0,4,0" ToolTip="Nudge +5 milliseconds">
+                                                            <TextBlock Text="+5ms" FontSize="11" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                                                Command="{Binding NudgeDelayCommand}" CommandParameter="10"
+                                                                Padding="8,4" Margin="0,0,6,0" ToolTip="Nudge +10 milliseconds">
+                                                            <TextBlock Text="+10ms" FontSize="11" />
+                                                        </Button>
+                                                        <Button Style="{StaticResource FluentSubtleButtonStyle}"
+                                                                Command="{Binding ResetDelayCommand}"
+                                                                Padding="8,4" ToolTip="Reset this output delay to 0 ms">
+                                                            <TextBlock Text="Reset (0 ms)" FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        </Button>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Row 3: Telemetry Pill -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                        <TextBlock Text="Buffer Queue: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding BufferOccupancyMs, StringFormat={}{0:F1}ms}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0" />
+                                                        <TextBlock Text="Total Software Delay: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding EstimatedBufferDelayMs, StringFormat={}{0:F1}ms}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0" />
+                                                        <TextBlock Text="Estimated Drift: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding DriftText}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,12,0" />
+                                                        <TextBlock Text="Buffer Drops: " FontSize="10" Foreground="{DynamicResource TextMutedBrush}" />
+                                                        <TextBlock Text="{Binding BufferOverflowDropCount}" FontSize="10" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                                    </StackPanel>
+
+                                                    <TextBlock Grid.Column="1" Text="{Binding StateBadgeText}" FontSize="10" FontWeight="SemiBold"
+                                                               Foreground="{Binding State, Converter={StaticResource StreamStateToBrush}}" />
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Placeholder when no active streams -->
+                            <Border Visibility="{Binding ActiveStreams.Count, Converter={StaticResource InvertBoolToVis}}"
+                                    Background="{DynamicResource SurfacePanelBrush}" CornerRadius="6" Padding="20" HorizontalAlignment="Stretch">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="No active calibration streams currently running." FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                    <TextBlock Text="Select at least 2 outputs in Audio Devices and click 'Start Calibration Pulse' above." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ========================================================= -->
+            <!-- 4. DIAGNOSTICS PAGE                                       -->
+            <!-- ========================================================= -->
+            <Grid Grid.Row="1"
+                  Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=Diagnostics}"
+                  Margin="28,24">
+                <Grid.RowDefinitions>
+                    <!-- Header -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Metrics Cards -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Session Synchronization & Per-Output Telemetry Table -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Acoustic Latency Disclaimer -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Event Log Terminal -->
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- HEADER -->
+                <Grid Grid.Row="0" Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Diagnostics &amp; Audio Health" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Real-time pipeline metrics, ring-buffer telemetry, and diagnostic logs."
+                                   FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Command="{Binding CopyDiagnosticsCommand}"
+                                Margin="0,0,8,0"
+                                Padding="14,7">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="{StaticResource IconCopy}" Fill="{DynamicResource TextSecondaryBrush}" Width="12" Height="12" Stretch="Uniform" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Copy Diagnostics" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                Command="{Binding ClearLogsCommand}"
+                                Padding="14,7">
+                            <TextBlock Text="Clear Event Log" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!-- PIPELINE AGGREGATES CARDS -->
+                <Grid Grid.Row="1" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Metric 1: Capture State -->
+                    <Border Grid.Column="0" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="CAPTURE STATE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding CaptureStatus.State}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 2: Frames Captured -->
+                    <Border Grid.Column="2" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="FRAMES CAPTURED" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding CaptureStatus.FramesCaptured, StringFormat={}{0:N0}}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 3: Internal Pipeline Delay -->
+                    <Border Grid.Column="4" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="BUFFER DELAY (~MS)" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                            <TextBlock Text="{Binding CaptureStatus.EstimatedCaptureToOutputDelayMs, StringFormat={}{0:F1} ms}" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Metric 4: Healthy Destinations -->
+                    <Border Grid.Column="6" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="HEALTHY OUTPUTS" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextMutedBrush}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="{Binding CaptureStatus.TotalHealthyDestinations}" FontSize="18" FontWeight="Bold" Foreground="#10B981" />
+                                <TextBlock Text=" / " FontSize="16" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding CaptureStatus.TotalActiveDestinations}" FontSize="16" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- SESSION SYNCHRONIZATION & PER-OUTPUT HEALTH -->
+                <Border Grid.Row="2" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Session Synchronization &amp; Clock Alignment" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="Software frame timeline, reference alignment, and per-destination drift telemetry." FontSize="11" Foreground="{DynamicResource TextMutedBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="Timing Reference: " FontSize="12" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ReferenceEndpointName}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentCyanBrush}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <Border Background="#15FFFFFF" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding SyncStatusText}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Active Stream Telemetry Rows (if any) -->
+                        <ItemsControl ItemsSource="{Binding ActiveStreams}" Margin="0,0,0,6">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource SurfacePanelBrush}" CornerRadius="4" Padding="10,6" Margin="0,0,0,6">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="200" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="100" />
+                                                <ColumnDefinition Width="90" />
+                                                <ColumnDefinition Width="110" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Col 0: Endpoint Name & Reference Badge -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding EndpointName}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding EndpointName}" />
+                                                <TextBlock Text="{Binding ReferenceBadgeText}" FontSize="10" Foreground="{DynamicResource AccentCyanBrush}" />
+                                            </StackPanel>
+
+                                            <!-- Col 1: Software Delay -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Software Delay" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding SyncDelayText}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+
+                                            <!-- Col 2: Buffer Queue -->
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Queue Occupancy" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding BufferOccupancyMs, StringFormat={}{0:F1} ms}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+
+                                            <!-- Col 3: Clock Drift -->
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Est. Drift" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding DriftText}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+
+                                            <!-- Col 4: Buffer Drops -->
+                                            <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                                                <TextBlock Text="Drops / Underruns" FontSize="9" Foreground="{DynamicResource TextMutedBrush}" />
+                                                <TextBlock Text="{Binding BufferOverflowDropCount}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                                            </StackPanel>
+
+                                            <!-- Col 5: Last Audio Write & State -->
+                                            <StackPanel Grid.Column="5" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StateBadgeText}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding State, Converter={StaticResource StreamStateToBrush}}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding LastAudioWriteText, StringFormat='Last write: {0}'}" FontSize="10" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Right" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Fallback if no active streams -->
+                        <Border Visibility="{Binding ActiveStreams.Count, Converter={StaticResource InvertBoolToVis}}"
+                                Background="{DynamicResource SurfacePanelBrush}" CornerRadius="4" Padding="12,8">
+                            <TextBlock Text="No active output destinations running. Start Playback, Calibration Pulse, or System Audio Sharing to view live synchronization telemetry."
+                                       FontSize="11" Foreground="{DynamicResource TextMutedBrush}" HorizontalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- ACOUSTIC LATENCY DISCLAIMER -->
+                <Border Grid.Row="3" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                        BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Path Grid.Column="0" Data="{StaticResource IconAbout}" Fill="{DynamicResource TextMutedBrush}" Width="14" Height="14" Stretch="Uniform" Margin="0,0,10,0" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1"
+                                   Text="Note: Internal Buffer Delay measures in-memory queue time (~5-20ms). Windows does not expose acoustic Bluetooth over-the-air playback delay; acoustic latency is reported as Unknown."
+                                   FontSize="11" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+
+                <!-- REAL-TIME DIAGNOSTIC LOG VIEWER -->
+                <Border Grid.Row="4" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="14">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Diagnostic Event Log" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,10" />
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding DiagnosticLogs}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#08FFFFFF" BorderThickness="0,0,0,1" Padding="6,4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="65" />
+                                                    <ColumnDefinition Width="55" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Timestamp, StringFormat={}{0:HH:mm:ss}}"
+                                                           FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextMutedBrush}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Level}"
+                                                           FontSize="11" FontWeight="Bold" FontFamily="Consolas, monospace"
+                                                           Foreground="{Binding Level, Converter={StaticResource LogLevelToBrush}}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding Message}"
+                                                           FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                           TextWrapping="Wrap" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================================= -->
+            <!-- 4. AUDIO SETTINGS PAGE                                    -->
+            <!-- ========================================================= -->
+            <ScrollViewer Grid.Row="1"
+                          Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=Settings}"
+                          VerticalScrollBarVisibility="Auto" Padding="28,24">
+                <StackPanel MaxWidth="800" HorizontalAlignment="Left">
+                    <TextBlock Text="Audio Settings" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                    <TextBlock Text="Configure audio behavior, device recovery, and appearance preferences."
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,24" />
+
+                    <!-- GROUP 1: APPEARANCE -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Appearance &amp; Theme" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Choose application theme. Supports Windows 11 Fluent Dark, Light, or Follow Windows system mode."
+                                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,14" />
+
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                        Command="{Binding SetThemeCommand}" CommandParameter="Dark"
+                                        Padding="16,8" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconMoon}" Fill="{DynamicResource TextSecondaryBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Dark" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                        Command="{Binding SetThemeCommand}" CommandParameter="Light"
+                                        Padding="16,8" Margin="0,0,10,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconSun}" Fill="{DynamicResource TextSecondaryBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Light" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Style="{StaticResource FluentSecondaryButtonStyle}"
+                                        Command="{Binding SetThemeCommand}" CommandParameter="System"
+                                        Padding="16,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Path Data="{StaticResource IconMonitor}" Fill="{DynamicResource TextSecondaryBrush}" Width="13" Height="13" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Follow Windows" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GROUP 2: DEVICE RECOVERY -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Device Recovery &amp; Fault Tolerance" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Controlled exponential recovery policy (1s, 2s, 4s, 8s, 15s) when endpoints disconnect."
+                                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,14" />
+
+                            <CheckBox Style="{StaticResource FluentToggleSwitchStyle}"
+                                      IsChecked="{Binding AutoReconnect, Mode=TwoWay}"
+                                      Content="Enable Automatic Endpoint Reconnection" Margin="0,0,0,8" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GROUP 3: ZERO-ECHO PROTECTION -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Zero-Echo Feedback Prevention" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="When the loopback capture source is also in your selected output list, SyncCast renders natively via Windows mixer while forwarding only to other destinations."
+                                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GROUP 4: STORAGE & LOCAL FILES -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Local Settings Storage" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="User preferences and per-device volume settings are saved locally without cloud telemetry."
+                                       FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,0,0,10" />
+                            <Border Background="{DynamicResource SurfacePanelBrush}" CornerRadius="4" Padding="10,6">
+                                <TextBlock Text="%APPDATA%\SyncCast\settings.json" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource AccentCyanBrush}" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ========================================================= -->
+            <!-- 5. ABOUT PAGE                                             -->
+            <!-- ========================================================= -->
+            <ScrollViewer Grid.Row="1"
+                          Visibility="{Binding CurrentPage, Converter={StaticResource EqToVis}, ConverterParameter=About}"
+                          VerticalScrollBarVisibility="Auto" Padding="28,24">
+                <StackPanel MaxWidth="800" HorizontalAlignment="Left">
+                    <TextBlock Text="About SyncCast" FontSize="26" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,4" />
+                    <TextBlock Text="Personal multi-device audio router and diagnostics utility."
+                               FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,24" />
+
+                    <!-- SYSTEM INFO CARD -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="System &amp; Runtime Information" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12" />
+
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Application Version:" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding AppVersion}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </Grid>
+
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Operating System:" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding WindowsVersionInfo}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </Grid>
+
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text=".NET Framework:" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="{Binding DotNetVersionInfo}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </Grid>
+
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Audio Engine:" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" />
+                                <TextBlock Grid.Column="1" Text="NAudio 2.2.1 (WASAPI Loopback &amp; Shared Mode Render)" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- HARDWARE ARCHITECTURE PRINCIPLES -->
+                    <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Hardware Architecture &amp; System Constraints" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,8" />
+                            <TextBlock Text="• PC Bluetooth 5.x adapters do not guarantee 5 concurrent audio connections due to radio packet scheduling limits. SyncCast enforces a strict 5-device maximum cap and provides real-time concurrency diagnostics."
+                                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <TextBlock Text="• Zero Kernel Drivers: Built entirely on user-mode Windows Core Audio APIs without third-party virtual audio cables or paid software transmitters."
+                                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                            <TextBlock Text="• Protected Content: DRM and Protected Audio Path (PAP) audio streams render silent buffers to WASAPI loopback by Windows security design."
+                                       FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

@@ -1,0 +1,25 @@
+<Application x:Class="SyncCast.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:SyncCast.Converters">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global Converters -->
+            <converters:BooleanToVisibilityConverter x:Key="BoolToVis" />
+            <converters:BooleanToVisibilityConverter x:Key="InvertBoolToVis" Invert="True" />
+            <converters:InvertBooleanConverter x:Key="InvertBool" />
+            <converters:TransportToColorConverter x:Key="TransportToColor" />
+            <converters:StateToStatusBrushConverter x:Key="StateToBrush" />
+            <converters:LogLevelToBrushConverter x:Key="LogLevelToBrush" />
+            <converters:StreamStateToBrushConverter x:Key="StreamStateToBrush" />
+            <converters:CaptureStateToBrushConverter x:Key="CaptureStateToBrush" />
+            <converters:EqualityToVisibilityConverter x:Key="EqToVis" />
+            <converters:EqualityToBooleanConverter x:Key="EqToBool" />
+            <converters:TransportToIconConverter x:Key="TransportToIcon" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

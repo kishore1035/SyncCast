@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\SyncCast.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- Product and Version Metadata -->
+    <AssemblyName>SyncCast</AssemblyName>
+    <RootNamespace>SyncCast</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>SyncCast</Product>
+    <Title>SyncCast — Multi-Device Audio Output Router</Title>
+    <Description>Personal software-only Windows desktop application to route and synchronize system audio across multiple active Windows audio endpoints.</Description>
+    <Company>SyncCast Project</Company>
+    <Copyright>Copyright © 2026 SyncCast Project</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\SyncCast.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+</Project>
