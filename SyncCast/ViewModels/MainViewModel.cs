@@ -62,6 +62,10 @@ public partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanStopAudio))]
     [NotifyPropertyChangedFor(nameof(CanStartSharing))]
     [NotifyPropertyChangedFor(nameof(CanStopSharing))]
+    [NotifyPropertyChangedFor(nameof(HasActiveStreams))]
+    [NotifyPropertyChangedFor(nameof(CanShowStartSharingPrompt))]
+    [NotifyPropertyChangedFor(nameof(AudioDevicesStatusTitle))]
+    [NotifyPropertyChangedFor(nameof(AudioDevicesStatusDescription))]
     private bool _isAudioPlaying;
 
     [ObservableProperty]
@@ -74,6 +78,10 @@ public partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanStopAudio))]
     [NotifyPropertyChangedFor(nameof(CanStartSharing))]
     [NotifyPropertyChangedFor(nameof(CanStopSharing))]
+    [NotifyPropertyChangedFor(nameof(HasActiveStreams))]
+    [NotifyPropertyChangedFor(nameof(CanShowStartSharingPrompt))]
+    [NotifyPropertyChangedFor(nameof(AudioDevicesStatusTitle))]
+    [NotifyPropertyChangedFor(nameof(AudioDevicesStatusDescription))]
     private bool _isSharingAudio;
 
     [ObservableProperty]
@@ -249,6 +257,45 @@ public partial class MainViewModel : ObservableObject
 
     public bool CanStartCalibration => !IsAudioPlaying && !IsSharingAudio && !IsCalibrationRunning && !IsStartingPlayback && SelectedCount >= 2;
     public bool CanStopCalibration => IsCalibrationRunning;
+
+    public bool HasActiveStreams => ActiveStreams.Count > 0;
+    public bool CanShowStartSharingPrompt => !IsSharingAudio && !IsAudioPlaying && CanStartSharing;
+
+    public string AudioDevicesStatusTitle
+    {
+        get
+        {
+            if (IsSharingAudio) return "Live Multi-Device Audio Sharing Active";
+            if (IsAudioPlaying) return "Test Tone Audio Generator Active";
+            if (SelectedCount >= 2) return $"{SelectedCount} Devices Selected (Engine Idle)";
+            if (SelectedCount == 1) return "1 Device Selected (Engine Idle)";
+            return "No Devices Selected";
+        }
+    }
+
+    public string AudioDevicesStatusDescription
+    {
+        get
+        {
+            if (IsSharingAudio)
+            {
+                return $"Mirroring system audio from '{SelectedCaptureSource?.FriendlyName ?? "Default Device"}' to {EligibleMirroredDestinationCount} destination(s) concurrently.";
+            }
+            if (IsAudioPlaying)
+            {
+                return "Rendering test tone across all selected destinations.";
+            }
+            if (SelectedCount >= 2)
+            {
+                return $"Click 'Start Sharing' to duplicate your Windows audio from '{SelectedCaptureSource?.FriendlyName ?? "Default Device"}' across all selected devices.";
+            }
+            if (SelectedCount == 1)
+            {
+                return "Select at least one more device to enable multi-device audio sharing.";
+            }
+            return "Toggle the switch next to any connected headphones or speakers to add them to your multi-device setup.";
+        }
+    }
 
     public int HealthyStreamsCount => ActiveStreams.Count(s => s.IsPlaying);
 
@@ -735,6 +782,40 @@ public partial class MainViewModel : ObservableObject
                 SelectedEndpoints.Add(targetEndpoint);
             }
             _logService.LogInfo($"Selected endpoint: '{targetEndpoint.FriendlyName}' [{targetEndpoint.Transport}]");
+
+            if (_audioEngine.IsRunning)
+            {
+                _ = Task.Run(async () =>
+                {
+                    var status = await _audioEngine.AttachDestinationAsync(targetEndpoint.Info);
+                    if (status != null)
+                    {
+                        void AddStreamAction()
+                        {
+                            if (!ActiveStreams.Any(s => s.EndpointId == targetEndpoint.Id))
+                            {
+                                ActiveStreams.Add(new OutputStreamViewModel(
+                                    status,
+                                    OnDeviceVolumeChanged,
+                                    OnDeviceDelayChanged,
+                                    SetReferenceEndpoint,
+                                    OnRetryEndpointRequested));
+                            }
+                            OnPropertyChanged(nameof(HasActiveStreams));
+                        }
+
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null && !dispatcher.CheckAccess())
+                        {
+                            await dispatcher.InvokeAsync(AddStreamAction);
+                        }
+                        else
+                        {
+                            AddStreamAction();
+                        }
+                    }
+                });
+            }
         }
         else if (!isNowSelected && wasSelected)
         {
@@ -744,6 +825,34 @@ public partial class MainViewModel : ObservableObject
                 SelectedEndpoints.Remove(match);
             }
             _logService.LogInfo($"Deselected endpoint: '{targetEndpoint.FriendlyName}'");
+
+            if (_audioEngine.IsRunning)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await _audioEngine.DetachDestinationAsync(targetEndpoint.Id);
+
+                    void RemoveStreamAction()
+                    {
+                        var streamMatch = ActiveStreams.FirstOrDefault(s => s.EndpointId == targetEndpoint.Id);
+                        if (streamMatch != null)
+                        {
+                            ActiveStreams.Remove(streamMatch);
+                        }
+                        OnPropertyChanged(nameof(HasActiveStreams));
+                    }
+
+                    var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                    if (dispatcher != null && !dispatcher.CheckAccess())
+                    {
+                        await dispatcher.InvokeAsync(RemoveStreamAction);
+                    }
+                    else
+                    {
+                        RemoveStreamAction();
+                    }
+                });
+            }
         }
 
         if (result == SelectionResult.LimitReached || result == SelectionResult.DeviceUnavailable || result == SelectionResult.NotFound)
@@ -766,6 +875,10 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SourceSelectionAdviceMessage));
         OnPropertyChanged(nameof(CanStartAudio));
         OnPropertyChanged(nameof(CanStartSharing));
+        OnPropertyChanged(nameof(HasActiveStreams));
+        OnPropertyChanged(nameof(CanShowStartSharingPrompt));
+        OnPropertyChanged(nameof(AudioDevicesStatusTitle));
+        OnPropertyChanged(nameof(AudioDevicesStatusDescription));
 
         UpdateDiagnostics(AvailableEndpoints.Select(vm => vm.Info).ToList(), testedCount: _audioEngine.ActivePlayingCount);
     }

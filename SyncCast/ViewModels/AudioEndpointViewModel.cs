@@ -33,6 +33,7 @@ public partial class AudioEndpointViewModel : ObservableObject
     public string TransportReason => Info.TransportReason;
     public bool IsDefaultEndpoint => Info.IsDefaultEndpoint;
     public string FormatSummary => Info.FormatSummary;
+    public string FormatText => FormatSummary;
     public bool IsActive => Info.IsActive;
 
     [ObservableProperty]

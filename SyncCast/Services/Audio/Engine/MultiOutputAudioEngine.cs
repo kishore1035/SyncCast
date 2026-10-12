@@ -61,6 +61,18 @@ public interface IMultiOutputAudioEngine : IDisposable
         IReadOnlyList<AudioEndpointInfo> endpoints,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Dynamically attaches a destination output endpoint to the currently running audio session.
+    /// </summary>
+    Task<OutputStreamStatus?> AttachDestinationAsync(
+        AudioEndpointInfo destination,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Dynamically detaches and stops a destination output endpoint from the active audio session.
+    /// </summary>
+    Task DetachDestinationAsync(string endpointId);
+
     Task StopPlaybackAsync();
 }
 
@@ -693,6 +705,110 @@ public class MultiOutputAudioEngine : IMultiOutputAudioEngine
             {
                 _logService.LogError($"[Manual Retry] Reconnection error for '{endpoint.FriendlyName}': {ex.Message}");
                 return false;
+            }
+        }
+        finally
+        {
+            _sessionLock.Release();
+        }
+    }
+
+    public async Task<OutputStreamStatus?> AttachDestinationAsync(
+        AudioEndpointInfo destination,
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed || !IsRunning || destination == null) return null;
+
+        await _sessionLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_activeStreams.TryGetValue(destination.Id, out var existing))
+            {
+                return existing.Status;
+            }
+
+            if (destination.State != EndpointActiveState.Active)
+            {
+                _logService.LogWarning($"[Destination Skipped] '{destination.FriendlyName}' is unavailable ({destination.State}).");
+                return null;
+            }
+
+            if (_activeMode == AudioEngineMode.SystemAudio)
+            {
+                if (_currentCaptureSource != null && string.Equals(destination.Id, _currentCaptureSource.Id, StringComparison.OrdinalIgnoreCase))
+                {
+                    var nativeStream = _streamFactory(destination, _logService);
+                    nativeStream.MarkAsNativeSource();
+                    nativeStream.SetSyncDelay(0.0, snapImmediately: true);
+                    nativeStream.IsSyncReference = string.Equals(destination.Id, _referenceEndpointId, StringComparison.OrdinalIgnoreCase);
+                    _timeline.RegisterDestination(destination.Id, 0.0);
+                    _activeStreams[destination.Id] = nativeStream;
+                    _logService.LogInfo($"[Dynamic Attach] '{destination.FriendlyName}' attached as native loopback source.");
+                    return nativeStream.Status;
+                }
+
+                var stream = _streamFactory(destination, _logService);
+                var (devVol, devMuted) = GetDeviceVolumeSetting(destination.Id);
+                stream.SetVolume(devVol, devMuted, _masterVolumePercent, _isMasterMuted);
+
+                double devDelay = GetDeviceSyncDelay(destination.Id);
+                stream.SetSyncDelay(devDelay, snapImmediately: true);
+                stream.IsSyncReference = string.Equals(destination.Id, _referenceEndpointId, StringComparison.OrdinalIgnoreCase);
+                _timeline.RegisterDestination(destination.Id, devDelay);
+
+                stream.StatusChanged += OnIndividualStreamStatusChanged;
+                _activeStreams[destination.Id] = stream;
+
+                var captureFormat = CaptureService.CaptureFormat ?? NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+                bool started = await stream.StartWithLiveCaptureAsync(captureFormat, cancellationToken);
+                _logService.LogSuccess($"[Dynamic Attach] Live stream started dynamically for '{destination.FriendlyName}'.");
+                return stream.Status;
+            }
+            else if (_activeMode == AudioEngineMode.TestTone)
+            {
+                var stream = _streamFactory(destination, _logService);
+                var (devVol, devMuted) = GetDeviceVolumeSetting(destination.Id);
+                stream.SetVolume(devVol, devMuted, _masterVolumePercent, _isMasterMuted);
+
+                double devDelay = GetDeviceSyncDelay(destination.Id);
+                stream.SetSyncDelay(devDelay, snapImmediately: true);
+                stream.IsSyncReference = string.Equals(destination.Id, _referenceEndpointId, StringComparison.OrdinalIgnoreCase);
+                _timeline.RegisterDestination(destination.Id, devDelay);
+
+                stream.StatusChanged += OnIndividualStreamStatusChanged;
+                _activeStreams[destination.Id] = stream;
+
+                await stream.StartAsync(SampleSource, cancellationToken);
+                _logService.LogSuccess($"[Dynamic Attach] Tone stream started dynamically for '{destination.FriendlyName}'.");
+                return stream.Status;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logService.LogError($"[Dynamic Attach Error] Failed attaching destination '{destination.FriendlyName}': {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            _sessionLock.Release();
+        }
+    }
+
+    public async Task DetachDestinationAsync(string endpointId)
+    {
+        if (_disposed || string.IsNullOrEmpty(endpointId)) return;
+
+        await _sessionLock.WaitAsync();
+        try
+        {
+            if (_activeStreams.TryRemove(endpointId, out var stream))
+            {
+                stream.StatusChanged -= OnIndividualStreamStatusChanged;
+                stream.Dispose();
+                _timeline.UnregisterDestination(endpointId);
+                _logService.LogInfo($"[Dynamic Detach] Detached stream for '{endpointId}'.");
             }
         }
         finally

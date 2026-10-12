@@ -239,6 +239,27 @@ public class MockAudioEngine : IMultiOutputAudioEngine
         return Task.CompletedTask;
     }
 
+    public Task<OutputStreamStatus?> AttachDestinationAsync(AudioEndpointInfo destination, CancellationToken cancellationToken = default)
+    {
+        var status = new OutputStreamStatus
+        {
+            EndpointId = destination.Id,
+            EndpointName = destination.FriendlyName,
+            Transport = destination.Transport,
+            State = StreamPlaybackState.Playing,
+            TargetFormat = "48,000 Hz • Stereo • Float",
+            LatencyMs = 100
+        };
+        MockStatuses.Add(status);
+        return Task.FromResult<OutputStreamStatus?>(status);
+    }
+
+    public Task DetachDestinationAsync(string endpointId)
+    {
+        MockStatuses.RemoveAll(s => s.EndpointId == endpointId);
+        return Task.CompletedTask;
+    }
+
     public void Dispose() { }
 }
 
