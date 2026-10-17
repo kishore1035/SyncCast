@@ -4,6 +4,95 @@ A personal software-only Windows desktop application built with **.NET 8** and *
 
 ---
 
+## How It Works (At a Glance)
+
+SyncCast operates entirely in user mode using native Windows Core Audio APIs (**WASAPI**). It requires **no third-party virtual audio cables**, **no kernel drivers**, and **no elevated administrator permissions**.
+
+```
+                           +------------------------------------+
+                           |  Any Windows Application / Player   |
+                           |  (Spotify, YouTube, VLC, Games...) |
+                           +-----------------+------------------+
+                                             |
+                                             v (Native Audio Playback)
+                           +------------------------------------+
+                           |   Windows Default Audio Endpoint   |
+                           |   (e.g., Laptop Speakers / AUX)    |
+                           +-----------------+------------------+
+                                             |
+                                             v (WASAPI Loopback Capture)
+                                    [SyncCast Engine]
+                                             |
+        +------------------------------------+------------------------------------+
+        |                                    |                                    |
+        v                                    v                                    v
++---------------+                    +---------------+                    +---------------+
+| Native Source |                    | Destination 1 |                    | Destination 2 |
+| (Zero Echo)   |                    | (Ring Buffer) |                    | (Ring Buffer) |
++-------+-------+                    +-------+-------+                    +-------+-------+
+        |                                    |                                    |
+(Already Playing)                    (Delay Sample Provider)              (Delay Sample Provider)
+(No duplicate stream)                        |                                    |
+                                     (Resampler / Formatter)              (Resampler / Formatter)
+                                             |                                    |
+                                             v                                    v
+                                    [WasapiOut Shared]                   [WasapiOut Shared]
+                                    Bluetooth Headphones                   USB / 3.5mm Headset
+```
+
+### 1. Loopback Capture Stage
+* SyncCast attaches to the active Windows default render endpoint using **WASAPI Loopback Capture** (`WasapiLoopbackCapture`).
+* It captures live PCM audio frames rendered by any desktop app, browser, or game directly from the Windows audio mixer before physical output.
+
+### 2. Zero-Echo Feedback Prevention (Native Source Bypass)
+* If your capture source is also toggled as one of your selected outputs, SyncCast **does not** create a duplicate audio playback stream to that device.
+* Instead, it marks that device as **`Native Source`** (letting Windows play it natively at zero added latency) and routes live audio frames **only to the other selected destinations**. This prevents echo, duplicate audio, and recursive loopback.
+
+### 3. Fan-Out & Format Adaptation
+* Each additional destination endpoint maintains an isolated 250ms bounded ring buffer (`BufferedWaveProvider`).
+* Because each audio device operates at its own hardware sample rate and bit depth (e.g., 44.1 kHz 16-bit vs. 48 kHz 32-bit float), SyncCast passes captured audio through a real-time `AudioFormatAdapter` with high-quality resampling (`WdlResamplingSampleProvider`) and channel mapping.
+
+### 4. Software Sync Offset (0–1000 ms)
+* Bluetooth headphones introduce inherent physical wireless latency (~100–250ms) compared to wired speakers.
+* SyncCast provides an independent delay line (`DelaySampleProvider`) with fractional smoothing for each destination, allowing you to delay earlier devices so all audio reaches your ears in acoustic synchronization.
+
+---
+
+## Quick Start: How to Use SyncCast
+
+1. **Launch SyncCast**:
+   Run `SyncCast.exe` (or `dotnet run --project SyncCast -c Release`).
+2. **Select Your Output Devices**:
+   - Go to the **Audio Devices** tab (or **Overview** tab).
+   - Click the toggle switch next to up to 5 audio endpoints you want to hear audio from.
+   - The device with the cyan badge is your **Capture Source** (where Windows normally sends audio).
+3. **Start Sharing**:
+   - Click the **Start Sharing** button in the header (or on the Audio Devices page).
+   - Audio playing in Windows (YouTube, Spotify, etc.) will immediately play through all selected devices simultaneously.
+   - Adjust individual volume sliders or sync delay as needed.
+
+---
+
+## Bluetooth Hardware Notice: Connecting Two Bluetooth Headphones
+
+> [!IMPORTANT]
+> **Windows Classic Bluetooth (A2DP) Single-Radio Limitation**
+>
+> A standard PC built-in Bluetooth adapter (Intel, Realtek, Qualcomm) supports connecting multiple Bluetooth devices for mouse, keyboard, and phone sync, but **only supports ONE active stereo audio playback stream (A2DP) per physical Bluetooth radio controller**.
+>
+> If you pair and connect two pairs of classic Bluetooth headphones (e.g., two pairs of AirPods) to the same built-in PC Bluetooth card, Windows will show both as "paired", but as soon as the second one starts playing, the Bluetooth adapter will automatically disconnect or silence the first one (`CM_PROB_PHANTOM` / device unplugged). This is a physical Bluetooth controller hardware limit, not a software bug.
+
+### Supported Multi-Output Configurations:
+| Configuration | Supported? | Details |
+| :--- | :---: | :--- |
+| **1 Bluetooth Headphone + 1 Wired (3.5mm AUX / USB)** | **YES** | Works out of the box with zero additional hardware. |
+| **1 Bluetooth Headphone + Built-in Laptop / Monitor Speakers** | **YES** | Works out of the box with zero additional hardware. |
+| **2 USB / Wired Headphones (e.g. 3.5mm + USB DAC)** | **YES** | Works out of the box. |
+| **2 Bluetooth Headphones via Built-in Bluetooth** | **NO** | Standard PC Bluetooth chipsets cannot maintain 2 simultaneous A2DP audio links. |
+| **2 Bluetooth Headphones via Dual Bluetooth Radios** | **YES** | Plug in an inexpensive USB Bluetooth dongle (~$5–$10). Pair Headphone A to built-in Bluetooth and Headphone B to the USB dongle. SyncCast will stream to both simultaneously! |
+
+---
+
 ## Evolution & Stage Breakdown
 
 SyncCast is engineered to discover, manage, capture, and concurrently render audio across multiple independent Windows render endpoints without third-party kernel drivers, virtual audio cables, or paid hardware transmitters.
