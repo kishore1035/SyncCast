@@ -297,6 +297,12 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    public bool HasMultipleBluetoothSelected =>
+        SelectedEndpoints.Count(e => e.Transport == DeviceTransportType.Bluetooth) >= 2;
+
+    public string MultipleBluetoothWarningMessage =>
+        "Hardware Notice: Your PC has a single Bluetooth radio adapter. Windows Bluetooth (A2DP) can only actively stream audio to one Bluetooth headset at a time. When a second Bluetooth headset connects, Windows hands off the active audio stream to the newest device and puts the other into standby. To play audio on two headphones simultaneously, pair one via Bluetooth and plug the other into the 3.5mm headphone jack, a USB port, or a secondary USB Bluetooth dongle.";
+
     public int HealthyStreamsCount => ActiveStreams.Count(s => s.IsPlaying);
 
     public string SyncStatusText
@@ -879,6 +885,8 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanShowStartSharingPrompt));
         OnPropertyChanged(nameof(AudioDevicesStatusTitle));
         OnPropertyChanged(nameof(AudioDevicesStatusDescription));
+        OnPropertyChanged(nameof(HasMultipleBluetoothSelected));
+        OnPropertyChanged(nameof(MultipleBluetoothWarningMessage));
 
         UpdateDiagnostics(AvailableEndpoints.Select(vm => vm.Info).ToList(), testedCount: _audioEngine.ActivePlayingCount);
     }
