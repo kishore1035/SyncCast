@@ -1,5 +1,14 @@
 # SyncCast (SyncB) — Multi-Device Audio Output Router
 
+[![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![C# 12](https://img.shields.io/badge/C%23-12.0-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/csharp/)
+[![WPF](https://img.shields.io/badge/UI-WPF%20%7C%20Windows%2011%20Fluent-0078D4?logo=windows11&logoColor=white)](https://learn.microsoft.com/en-us/dotnet/desktop/wpf/)
+[![Audio API](https://img.shields.io/badge/Audio-WASAPI%20Shared%20Mode-FF6F00?logo=windows&logoColor=white)](https://learn.microsoft.com/en-us/windows/win32/coreaudio/wasapi)
+[![NAudio](https://img.shields.io/badge/Audio%20Engine-NAudio%20v2.2.1-008080)](https://github.com/naudio/NAudio)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011%20x64-0078D7?logo=windows)](https://microsoft.com)
+[![Drivers](https://img.shields.io/badge/Kernel%20Drivers-Zero%20(100%25%20User%20Mode)-2ea44f)](#how-it-works-at-a-glance)
+[![License](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
+
 A personal software-only Windows desktop application built with **.NET 8** and **WPF** designed to route audio output to up to **five (5)** independently available audio endpoints concurrently using native Windows audio APIs.
 
 ---
