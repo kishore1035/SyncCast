@@ -83,15 +83,81 @@ SyncCast operates entirely in user mode using native Windows Core Audio APIs (**
 > If you pair and connect two pairs of classic Bluetooth headphones (e.g., two pairs of AirPods) to the same built-in PC Bluetooth card, Windows will show both as "paired", but as soon as the second one starts playing, the Bluetooth adapter will automatically disconnect or silence the first one (`CM_PROB_PHANTOM` / device unplugged). This is a physical Bluetooth controller hardware limit, not a software bug.
 
 ### Supported Multi-Output Configurations:
-| Configuration | Supported? | Details |
-| :--- | :---: | :--- |
-| **1 Bluetooth Headphone + 1 Wired (3.5mm AUX / USB)** | **YES** | Works out of the box with zero additional hardware. |
-| **1 Bluetooth Headphone + Built-in Laptop / Monitor Speakers** | **YES** | Works out of the box with zero additional hardware. |
-| **2 USB / Wired Headphones (e.g. 3.5mm + USB DAC)** | **YES** | Works out of the box. |
-| **2 Bluetooth Headphones via Built-in Bluetooth** | **NO** | Standard PC Bluetooth chipsets cannot maintain 2 simultaneous A2DP audio links. |
-| **2 Bluetooth Headphones via Dual Bluetooth Radios** | **YES** | Plug in an inexpensive USB Bluetooth dongle (~$5–$10). Pair Headphone A to built-in Bluetooth and Headphone B to the USB dongle. SyncCast will stream to both simultaneously! |
+| Configuration | Supported? | Hardware Needed | Practical Setup |
+| :--- | :---: | :--- | :--- |
+| **Option A: 1 Bluetooth + 1 Wired (3.5mm AUX or USB)** | **YES** | 0 extra hardware | Connect 1 Bluetooth pair + plug 1 wired headphone/speaker into your PC jack. |
+| **Option B: 1 Bluetooth + Built-in Laptop / Monitor Speakers** | **YES** | 0 extra hardware | Listen on your Bluetooth headphones while sharing the room audio through your laptop speakers. |
+| **Option C: 2 Bluetooth Headphones (Dual Dongle)** | **YES** | 1 cheap USB Bluetooth Dongle (~$5–$10) | Pair Headphone 1 to built-in Bluetooth, Pair Headphone 2 to the USB dongle. |
+| **Option D: 2 USB / Wired Headphones** | **YES** | 0 extra hardware (or USB-C to 3.5mm adapter) | Plug one into 3.5mm jack and one into a USB/USB-C headphone adapter. |
+| **Option E: 2 Bluetooth Headphones via 1 Built-in Adapter** | **NO** | Single PC Bluetooth Radio | PC hardware disconnects one device when the other plays (A2DP hardware limit). |
 
 ---
+
+## How to Stream Simultaneously (Step-by-Step Setup Recipes)
+
+Depending on your hardware, here is exactly what to do to get simultaneous multi-headphone or multi-speaker audio working:
+
+### Recipe 1: 1 Bluetooth Headset + 1 Wired Headset (Zero Extra Cost)
+*Best for sharing audio with a friend right now without buying anything.*
+
+1. **Connect your devices**:
+   - Pair and connect your Bluetooth headphones (e.g. AirPods, Sony, Bose) to Windows.
+   - Plug your second pair of headphones into your computer's 3.5mm headphone jack or USB port.
+2. **Open SyncCast**:
+   - Go to the **Audio Devices** tab.
+   - Click the toggle switch on for your **Bluetooth Headphones**.
+   - Click the toggle switch on for your **Realtek / High Definition Audio (Speakers/Headphones)**.
+3. **Start Playing**:
+   - Click **Start Sharing** at the top.
+   - Start any media (YouTube, Spotify, movie player). Audio plays in both pairs simultaneously!
+4. *(Optional) Align Acoustic Timing*:
+   - If the wired headphones sound a split second ahead of the Bluetooth headphones (due to Bluetooth wireless latency), go to the **Sync Calibration** tab and increase the delay on the wired headphones by ~100–180ms until the sound is perfectly in sync.
+
+---
+
+### Recipe 2: Two Bluetooth Headphones (AirPods, etc.) Simultaneously
+*Standard Windows laptops and PCs have only ONE Bluetooth radio chip. To stream to two separate Bluetooth headphones simultaneously without either cutting out, you must provide a second Bluetooth radio.*
+
+#### What you need:
+* A mini **USB Bluetooth Dongle** (Bluetooth 5.0, 5.1, 5.3, or 5.4 — typically costs $5 to $10 on Amazon / Best Buy / electronics stores, from brands like TP-Link, ASUS, Baseus, or UGREEN).
+
+#### Step-by-Step Setup:
+1. **Plug in the USB Bluetooth Dongle** to an available USB port on your PC.
+   - Windows 10/11 will automatically install the driver. You now have **two independent Bluetooth controllers** on your machine.
+2. **Pair Headphone 1**:
+   - Pair your first pair of headphones (e.g. AirPods #1) to the primary Bluetooth controller.
+3. **Pair Headphone 2**:
+   - Pair your second pair of headphones (e.g. AirPods #2) to the second Bluetooth controller.
+   - Both devices will now remain in an active, streaming `Connected Audio` state without knocking each other offline.
+4. **Select & Stream in SyncCast**:
+   - Open SyncCast and go to **Audio Devices**.
+   - Toggle both Bluetooth headphones ON.
+   - Click **Start Sharing**. Both listeners will hear full stereo audio simultaneously!
+
+---
+
+### Recipe 3: Dual Wired Headphones (3.5mm Jack + USB Headphone Adapter)
+*Best for long flights, train rides, or zero-latency co-listening.*
+
+1. **Connect your devices**:
+   - Plug Headphone 1 into your laptop's standard 3.5mm audio jack.
+   - Plug Headphone 2 into any USB port using a cheap USB-to-3.5mm audio adapter or USB-C DAC dongle (e.g. Apple USB-C to 3.5mm headphone jack adapter).
+2. **In SyncCast**:
+   - Both appear as distinct audio endpoints in Windows.
+   - Toggle both devices ON in SyncCast.
+   - Click **Start Sharing**. You have instant, zero-latency dual listening with independent volume controls for each person!
+
+---
+
+### Recipe 4: Headphone + Room Speakers (Silent Listening + Room Audio)
+*Best for presentations, streaming, gaming, or watching a movie where one person wants headphones at high volume and another listens through room speakers.*
+
+1. **Select Devices**:
+   - Set Windows default output to your **Laptop / Desktop Speakers**.
+   - In SyncCast, toggle your **Speakers** and your **Bluetooth / USB Headphones** ON.
+2. **Click Start Sharing**:
+   - Room speakers play cleanly at the volume you choose.
+   - Headphone listener can turn their per-device volume slider up or down independently in SyncCast without affecting the room speakers.
 
 ## Evolution & Stage Breakdown
 
