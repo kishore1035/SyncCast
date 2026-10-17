@@ -159,168 +159,31 @@ Depending on your hardware, here is exactly what to do to get simultaneous multi
    - Room speakers play cleanly at the volume you choose.
    - Headphone listener can turn their per-device volume slider up or down independently in SyncCast without affecting the room speakers.
 
-## Evolution & Stage Breakdown
+## Core Features & Architecture
 
-SyncCast is engineered to discover, manage, capture, and concurrently render audio across multiple independent Windows render endpoints without third-party kernel drivers, virtual audio cables, or paid hardware transmitters.
+SyncCast is built on a modular user-mode architecture using native Windows Core Audio APIs (**WASAPI Shared Mode**), requiring zero kernel drivers or third-party virtual audio cables:
 
-### Stage 1: Audio Endpoint Discovery & Bluetooth Diagnostics
-* **Native Windows Core Audio Discovery**: Enumerates real render endpoints via `NAudio.CoreAudioApi` / `MMDeviceEnumerator` (DataFlow `Render`).
-* **Transport Classification Heuristics**: Analyzes Windows Core Audio property store strings, PnP IDs, and driver descriptors to classify endpoints as `Bluetooth`, `Built-In / Wired`, or `Unknown Transport`.
-* **Honest Unknown Reporting**: If the transport cannot be determined reliably from Windows metadata, it is labeled `Unknown Transport` instead of guessing.
-* **5-Device Selection Enforcement**: Enforces a strict maximum limit of five candidate audio output endpoints. Toggling a 6th device generates visual feedback and warning diagnostics without crashing.
-* **Selection State Preservation**: Selected devices are preserved during manual and periodic device refreshes as long as the endpoint remains active.
-* **Distinct Status Indicators**: Clearly separates `Available`, `Selected`, `Unavailable` (unplugged/disabled), and `Playback Not Tested`.
+### 1. Endpoint Discovery & Health Management
+* **Native Core Audio Discovery**: Automatically enumerates physical and virtual audio endpoints via `MMDeviceEnumerator` (DataFlow `Render`), detecting friendly names, hardware sample rates, and bit depths.
+* **Transport Classification**: Heuristically classifies endpoints (`Bluetooth`, `Built-in / Wired`, or `Unknown Transport`) based on PnP hardware IDs and driver descriptors.
+* **Hot-Plug & Disconnection Recovery**: Automatically detects device additions, removals, and state changes via `IMMNotificationClient`. If a device disconnects, it safely isolates the stream and reconnects with exponential backoff (1s, 2s, 4s, 8s, 15s) once re-plugged.
 
-### Chunk 2: Real Multi-Output Audio Engine (NAudio WASAPI)
-* **Low-Volume Generated Test-Tone Source**: Built-in continuous sine wave generator with Start/Stop controls. Features a safe default level (-20 dBFS / 10% volume) with user-selectable reference frequencies (440 Hz Concert A, 528 Hz Harmonic, 1000 Hz Standard Sine).
-* **Multi-Stream Shared-Mode Architecture**: Opens a separate, dedicated `WasapiOut` render stream in shared mode for each selected, available endpoint (up to 5).
-* **Automatic Format Adaptation & Resampling**: Each stream inspects the endpoint's native `device.AudioClient.MixFormat` and applies sample rate resampling (`WdlResamplingSampleProvider`), channel mapping (mono/stereo/surround), and bit-depth conversion (32-bit Float, 16-bit, 24-bit, 32-bit PCM) on demand.
-* **Independent Stream Lifecycle Management**: Each stream operates with its own lifecycle (`Stopped`, `Initializing`, `Playing`, `Failed`).
-* **Failure Isolation**: An individual stream failure (e.g. disconnected headphone, Bluetooth packet loss, or device exclusive lock) **never** crashes or halts remaining streams.
-* **Honest Concurrency Reporting**: Never counts selected endpoints as successful playback. Only streams that successfully initialize and stream audio samples are reported as playing.
+### 2. Multi-Output Audio Pipeline
+* **Real-Time Loopback Capture**: Captures live PCM/IEEE Float audio frames rendered by any desktop app, browser, or game using `WasapiLoopbackCapture`.
+* **Zero-Echo Protection**: If the loopback capture source is also toggled as an output, SyncCast marks it as `Native Source` (playing natively via Windows) and routes frames only to secondary destinations, preventing duplicate playback and feedback loops.
+* **Format Adaptation & Resampling**: Each output stream inspects the endpoint's native `MixFormat` and automatically applies high-quality resampling (`WdlResamplingSampleProvider`), channel mapping (mono/stereo/surround), and bit-depth conversion.
+* **Bounded Ring Buffering**: Each destination maintains an isolated 250ms circular ring buffer (`BufferedWaveProvider`) with overflow protection to discard stale frames and prevent unbounded latency growth.
 
-### Chunk 3: Real Windows System-Audio Capture & Multi-Output Distribution
-* **Dedicated WASAPI Loopback Capture Service**: Uses `NAudio.Wave.WasapiLoopbackCapture` targeting the specific active Windows audio render endpoint selected by the user.
-* **Real Mix Capture (Not Visual Simulation)**: Captures actual PCM/IEEE Float audio frames rendered through the selected playback device by any desktop application, browser, media player, or game.
-* **Feedback and Duplicate Audio Prevention (Zero Echo)**:
-  - If the user selects the capture source as one of the output destinations, SyncCast **does not** open a second mirrored playback stream back to that same endpoint. Instead, it marks that device as **`Native Source`** (playing via Windows native mixer) and forwards live audio **only to the other selected destinations**.
-  - If the capture source is *not* selected as an output, the UI displays an explicit advisory that Windows will continue rendering audio natively through the source device in addition to the mirrored destinations.
-  - Recursion guard prevents loopback audio from recapturing mirrored streams.
-* **Bounded Buffering & Latency Drop Policy**:
-  - Each destination stream maintains a bounded 250ms ring buffer (`BufferedWaveProvider`) with `DiscardOnBufferOverflow = true` and `ReadFully = true`.
-  - When a destination endpoint is slow (e.g., Bluetooth packet backpressure) or momentarily stalls, excess audio frames are discarded rather than allowing unbounded memory growth or runaway playback latency.
-* **Mutually Exclusive Operating Modes**:
-  - **Mode 1: System Audio Sharing**: Captures live Windows sound and mirrors it across eligible destinations.
-  - **Mode 2: Test Tone Generator**: Synthesizes reference test tones for hardware calibration and channel verification.
-  - Starting one mode automatically stops any running mode to ensure clean stream isolation and prevent audio mixing conflicts.
-* **Honest Diagnostics**:
-  - Differentiates: (1) Capture Initialized, (2) Audio Frames Actually Captured, (3) Destination Stream Opened, (4) Audio Rendered, and (5) Endpoint Failure.
-  - Displays real-time captured data metrics (bytes captured, format description, activity timestamp).
+### 3. Volume Control & Acoustic Calibration
+* **Master & Per-Device Volume**: Independent volume sliders (0–100%) and mute toggles for each output, backed by smooth gain slewing (`SmoothGainSampleProvider`) over 10–20ms to eliminate clicks and pops.
+* **Acoustic Delay Engine**: Integrated circular delay lines (0–1000ms range) per destination with fractional interpolation allow fine-tuning output timing to acoustically align fast wired devices with wireless Bluetooth buffers.
+* **Guided Sync Wizard**: Built-in acoustic alignment pulse generator emitting gentle 880 Hz Hann-windowed musical metronome pings (-20 dBFS) to assist manual ear-calibration.
+* **Continuous Reference Tone**: Independent test-tone mode (440 Hz, 528 Hz, 1000 Hz sine waves) for hardware diagnostics and channel verification.
 
-### Chunk 4: Per-Device Volume, Master Volume, Audio Health Monitoring & Device Reconnection
-* **Global Master Volume & Mute**:
-  - Global master volume slider (0–100%) with a quick-action Mute/Unmute toggle.
-  - Applies master gain smoothly to all active SyncCast output streams without restarting capture or recreating WasapiOut instances.
-  - Master mute silences forwarded audio without modifying the user's global Windows system volume.
-  - Smooth gain ramp (`SmoothGainSampleProvider`) dynamically adjusts gain over 10–20ms to eliminate clicks and pops during volume changes.
-* **Per-Device Volume & Mute Controls**:
-  - Each selected destination card features an independent volume slider (0–100%) and Mute/Unmute toggle.
-  - Formula: `effectiveGain = (isMasterMuted || isDeviceMuted) ? 0.0 : (masterGain × deviceGain)`.
-  - Muting one destination does not silence other destinations.
-  - Unmuting instantly restores the previous volume setting.
-  - Gain is applied directly within the sample processing pipeline (`SmoothGainSampleProvider`), protected by hard limits `[-1.0, +1.0]` against digital clipping.
-  - Gain is applied exactly once before format conversion; it is never multiplied repeatedly across copied or retried buffers.
-* **Audio Health Monitoring & Latency Diagnostics Dashboard**:
-  - Collapsible real-time health dashboard with throttled 250ms UI updates (avoids UI stalls from high-frequency audio callbacks).
-  - Aggregate metrics: Total frames captured, estimated capture-to-output processing delay (~ms), active & healthy destinations, total dropped frames.
-  - Per-destination stream metrics: Stream initialization status, audio bytes written, audio frames processed, current ring buffer occupancy (bytes and ms), buffer overflow drop count, last successful write timestamp, last error message, and estimated internal buffer delay.
-  - **Honest Latency Disclosure**: Explicitly differentiates measured software buffer delay (~5–20ms) from hardware Bluetooth acoustic latency (`Unknown (Hardware/Bluetooth dependent)`). Does not fake end-to-end acoustic latency measurements.
-* **Native Endpoint Disconnection Detection**:
-  - Uses Windows Core Audio `IMMNotificationClient` callbacks (`OnDeviceStateChanged`, `OnDeviceRemoved`) via `AudioEndpointNotificationService`.
-  - Disconnecting or unplugging one device isolates and transitions only that stream to `Disconnected` or `Recovering` while keeping all other healthy streams playing smoothly.
-* **Automatic Reconnection & Recovery Policy**:
-  - Controlled exponential backoff policy: 1s, 2s, 4s, 8s, 15s (capped at 15s).
-  - Preserves the disconnected device's volume and mute settings.
-  - Recovery attempts and results are tracked in the real-time event log.
-  - Canceled immediately upon session stop (`Stop Sharing`), device deselection, or application shutdown.
-  - Manual `Retry` button provided on device cards if auto-reconnection is disabled or retries are exhausted.
-* **Settings Persistence**:
-  - User preferences saved to `%APPDATA%\SyncCast\settings.json`.
-  - Persists Master Volume, Master Mute, Auto-Reconnect toggle, per-device volume/mute preferences, and last selected capture source.
-  - Robust error handling: Corrupted, empty, or outdated settings safely fall back to defaults without application failure.
-  - Asynchronous, debounced disk writes ensure audio streaming threads are never blocked.
-
-### Stage 5: Windows 11 Fluent Design UI/UX Redesign
-* **Native Windows 11 Fluent App Shell**:
-  - Integrated DWM API backdrop interop (`WindowBackdropHelper`): Supports Windows 11 Mica backdrop (`DWMWA_SYSTEMBACKDROP_TYPE = 38`, `DWMWA_MICA_EFFECT = 1029`), rounded window corners (`DWMWA_WINDOW_CORNER_PREFERENCE = 33`), and immersive title bar theme synchronization (`DWMWA_USE_IMMERSIVE_DARK_MODE = 20`).
-  - Graceful fallback for Windows 10 or virtualized environments without composition crashes.
-* **Compact Left Navigation Rail**:
-  - Fixed-width 230px navigation rail with branding header, live audio indicator pill, and modern Fluent pill radio buttons.
-  - 6 Dedicated Views:
-    1. **Overview**: Real-time status header, primary Start/Stop Sharing action button, feedback-prevention advisory, capture source selector with telemetry, global master volume slider & mute, and test-tone hardware calibration mode.
-    2. **Audio Devices**: Dual-panel layout with discovered Windows endpoints (transport icons, friendly name, format, selection toggle) and configured active streams (independent volume sliders, mute toggles, ring-buffer telemetry, retry buttons).
-    3. **Sync Calibration**: Dedicated guided alignment wizard with Acoustic Alignment Pulse generator, listening tips, reference device indicator, and per-device delay sliders with ±5ms and ±10ms nudge controls.
-    4. **Diagnostics**: Real-time aggregate pipeline health cards (capture state, frames captured, buffer delay, healthy destination count), session synchronization and clock alignment table, acoustic latency disclosure, and a monospace diagnostic event log.
-    5. **Audio Settings**: Grouped settings cards for Appearance (Dark, Light, Follow Windows), Device Recovery (Auto-Reconnect toggle with backoff details), Zero-Echo Protection, and local file storage paths.
-    6. **About**: System runtime info (.NET 8, OS description, NAudio WASAPI Shared Mode), Bluetooth radio concurrency principles, and zero-kernel-driver architectural principles.
-* **Vector Fluent Iconography & Typography**:
-  - All icons rendered via standard Fluent vector geometry paths (no emoji or low-res bitmap approximations).
-  - Clean font hierarchy using Segoe UI Variable Display and Segoe UI Variable Text.
-* **Multi-Theme Support**:
-  - Real-time dynamic theme switching via `ThemeService`: **Dark** (Default Fluent Dark Mica), **Light** (Fluent Light Mica), or **Follow Windows** (queries `AppsUseLightTheme` in Windows registry).
-  - Preference saved and loaded automatically from `%APPDATA%\SyncCast\settings.json`.
-
----
-
-### Chunk 5: Multi-Output Audio Synchronization, Per-Device Delay Calibration, Drift Monitoring & Guided Sync Wizard
-* **Shared Audio Timeline & Sequence Tracking (`SharedAudioTimeline`)**:
-  - High-resolution monotonic clock (`Stopwatch.GetTimestamp`) establishes a unified reference epoch across all outputs.
-  - Distributes audio blocks with contiguous, monotonically increasing sequence numbers and sample-frame offsets.
-  - Tracks cumulative source frames and per-destination frame consumption, computing real-time software clock drift deltas without fabricating imaginary physical measurements.
-* **Bounded Click-Free Delay Engine (`DelaySampleProvider`)**:
-  - Pre-allocated circular delay line (0–1000 ms range) placed ahead of volume scaling and format conversion.
-  - Implements fractional delay slewing (`MaxSlewPerFrame = 0.002`) to ensure live adjustments during playback glide smoothly without clicks, pops, or harsh buffer underruns.
-  - Independent per-device delay values with instant nudge buttons (±5ms, ±10ms) and one-click reset to 0ms.
-* **Timing Reference Device Workflow**:
-  - Allows the user to designate any active output as the **Timing Reference** (REFERENCE badge).
-  - Clarifies that the reference is a software alignment anchor, not a magic guarantee of zero hardware latency.
-  - Automatic disconnection recovery: if the reference device disconnects or is removed, SyncCast logs an advisory and cleanly shifts reference to another selected active endpoint without wiping saved delay values.
-* **Guided Manual Calibration Experience (`CalibrationPulseSampleSource`)**:
-  - Dedicated **Sync Calibration** page with acoustic alignment guidance.
-  - Generates gentle, Hann-windowed raised-cosine musical metronome pings (880 Hz A5, 40ms duration, 800ms period) at a safe -20 dBFS volume level.
-  - Completely free of harsh clicks, pops, or high-volume bursts.
-  - Clear listening instructions: human ears can detect relative delays as small as 5–10ms (the "flam" or slapback echo effect). Users delay the earlier (faster) device until clicks fuse into a single centered image.
-* **System-Audio Mode Synchronization Limitations & Advisories**:
-  - When the loopback capture source is also in selected outputs, it bypasses loopback to prevent feedback and plays natively via Windows at a 0 ms mixer baseline.
-  - Software delay can only delay mirrored destinations relative to each other; it **cannot** pull native Windows mixer audio backward in time.
-  - Prominent UI advisory warns the user when the source device cannot be synchronized with mirrored destinations.
-* **Software Timing & Drift Diagnostics**:
-  - Tracks queue buffer occupancy (ms and bytes), estimated buffer delay, clock drift relative to source frames, and drop counts.
-  - Integrated Session Synchronization status card in Diagnostics page displaying reference endpoint, configuration status, and per-destination health.
-* **Settings Persistence**:
-  - Persists `SyncDelayMs` per device, `ReferenceEndpointId`, and `DriftMonitoringEnabled` to `%APPDATA%\SyncCast\settings.json` with automatic range sanitization (0–1000 ms).
-
-### Chunk 6: Comprehensive Stability Hardening, Concurrency Serialization & Diagnostics Export
-* **Strict Session Serialization (`SemaphoreSlim _sessionLock`)**:
-  - Resolves re-entrancy races between `StartPlaybackAsync`, `StartSystemAudioSharingAsync`, `StartCalibrationPulseAsync`, `StopPlaybackAsync`, and `RetryEndpointAsync`.
-  - Ensures clean teardown before starting new audio sessions, preventing concurrent WASAPI client initializations or state corruption.
-* **CancellationTokenSource & Timer Resource Leak Fixes**:
-  - Auto-reconnect background tasks (`ScheduleAutoReconnect`) safely dispose their `CancellationTokenSource` upon completion or cancellation within guaranteed `finally` blocks.
-  - Periodic diagnostics update timer (`_diagnosticUpdateTimer`) throttled to 250ms with sync context marshalling to eliminate UI thread stalls.
-* **Zero-Allocation Hot-Path Optimization**:
-  - Replaced per-sample `BitConverter.GetBytes()` allocation in `FormattedWaveProvider` with zero-allocation `Buffer.BlockCopy`.
-  - Replaced heap-allocating `_activeStreams.Values` snapshots on every audio capture tick with zero-allocation `ConcurrentDictionary` struct enumeration.
-* **Format Bridge Frame Alignment & Resilience**:
-  - Enforced 4-byte and 2-byte frame boundary truncations in `ExtensibleFloatSampleProvider` and `Pcm16BitToSampleProvider` before copying into destination buffers.
-  - Enhanced `CreateSampleProviderBridge` to support both IEEE Float and PCM subformats under `WaveFormatExtensible` without throwing `ArgumentException`.
-* **Clipboard Diagnostics Export (`Copy Diagnostics`)**:
-  - One-click copy button on the Diagnostics page exports complete system telemetry, capture state, per-stream buffer occupancy, volume, drift metrics, and the 50 most recent event log entries to the Windows clipboard.
-  - Strictly software diagnostics only — zero transmission to external cloud services and zero recording of audio data.
-* **Comprehensive Automated Test Expansion**:
-  - **81 total automated tests** (0 failures, 100% pass rate) covering repeated 20-cycle Start/Stop stress tests, concurrent start serialization, idempotent disposal, anti-clipping gain bounds, corrupted settings recovery, and destination failure isolation.
-
-### Chunk 7: Final Product Polish, Release Build, Portable Packaging & Release Validation
-* **Unified Application Identity & Multi-Resolution Windows Icon**:
-  - Professional high-fidelity multi-resolution icon (`SyncCast.ico`: 256x256, 64x64, 48x48, 32x32, 16x16) embedded as `<ApplicationIcon>` and packaged as a WPF window title bar resource.
-  - Native `app.manifest` integrated with `PerMonitorV2` DPI awareness, Windows 10/11 OS GUID declarations (`{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}`), and standard `asInvoker` user security (zero administrator privilege elevation required).
-  - Version `1.0.0` synchronized across `SyncCast.csproj`, Assembly Information, and runtime About telemetry.
-* **Release Mode Optimization & Build Cleanliness**:
-  - Solution compiles in Release configuration with **0 warnings and 0 errors**.
-  - All 81 automated tests pass in Release mode with 100% pass rate.
-* **Self-Contained Portable Windows x64 Distribution**:
-  - Standalone release package published to `artifacts/SyncCast-win-x64/` with runtime self-containment (zero external .NET SDK or runtime installation required on the target machine).
-  - Packaged portable ZIP archive `artifacts/SyncCast-win-x64-portable.zip` (67.16 MB) stripped of debugging symbols (`.pdb`) and crash dump tools for a clean consumer footprint.
-  - Generates verifiable SHA-256 checksums in `artifacts/checksums.sha256`.
-* **Zero-Elevated Per-User Storage & Writable Defaults**:
-  - Persistent user preferences, device gain calibrations, and delay values store strictly in `%APPDATA%\SyncCast\settings.json`.
-  - Zero attempt to write mutable settings into protected installation directories (`Program Files`).
-* **Inno Setup Script Specification**:
-  - Provided `installer/SyncCast.iss` for clean, per-user Windows installation (`{localappdata}\Programs\SyncCast`) with Start Menu shortcuts and uninstaller registration.
-  - Documented honest status: Host build environment lacks `iscc.exe`, preserving the portable ZIP as the verified primary distribution.
-* **Packaged Smoke Test Validation**:
-  - Published self-contained executable launched on the physical host and verified live UI initialization, active process responding state (PID verified, `Responding = True`), zero startup crashes, and clean resource teardown.
-
----
+### 4. Modern Windows 11 Fluent Interface
+* **Fluent App Shell**: Built with WPF and native Desktop Window Manager (DWM) integration, supporting Windows 11 Mica material backdrop, rounded corners, and dark/light theme synchronization.
+* **Real-Time Telemetry Dashboard**: Throttled 250ms diagnostic monitoring displaying frames captured, software buffer delay, drift deltas, buffer occupancy, and one-click diagnostics export to clipboard.
+* **Per-User Configuration**: User preferences, volume levels, delay calibrations, and themes automatically persist in `%APPDATA%\SyncCast\settings.json`.
 
 ## Real Hardware Concurrency Test Results (On Current Machine)
 
